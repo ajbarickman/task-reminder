@@ -1,0 +1,18 @@
+{
+  "name": "FamilyTask Reminders",
+  "short_name": "FamilyTask",
+  "description": "Keep chores, homework, and tests in sync between parent and son.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4f46e5",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
