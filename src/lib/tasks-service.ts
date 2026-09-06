@@ -2,6 +2,8 @@ import { prisma } from "./prisma";
 import fs from "fs";
 import path from "path";
 
+import os from "os";
+
 export interface TaskItem {
   id: string;
   title: string;
@@ -15,82 +17,105 @@ export interface TaskItem {
   familyId?: string | null;
 }
 
-const LOCAL_DATA_FILE = path.join(process.cwd(), ".local-data", "tasks.json");
+const LOCAL_DATA_FILE =
+  process.env.VERCEL || process.env.NODE_ENV === "production"
+    ? path.join(os.tmpdir(), "tasks.json")
+    : path.join(process.cwd(), ".local-data", "tasks.json");
+
+let inMemoryTasks: TaskItem[] | null = null;
+
+function getInitialTasks(): TaskItem[] {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  return [
+    {
+      id: "task-1",
+      title: "Clean bedroom & organize desk",
+      category: "CHORE",
+      notes: "Put laundry into the hamper and wipe down desk surface.",
+      dueDate: today.toISOString(),
+      isCompleted: false,
+      assignedToName: "Son",
+      createdByName: "Parent",
+    },
+    {
+      id: "task-2",
+      title: "History Chapter 5 Quiz Prep",
+      category: "TEST",
+      notes: "Review flashcards on the American Revolution key dates.",
+      dueDate: tomorrow.toISOString(),
+      isCompleted: false,
+      assignedToName: "Son",
+      createdByName: "Parent",
+    },
+    {
+      id: "task-3",
+      title: "Math worksheet pages 42-45",
+      category: "HOMEWORK",
+      notes: "Problems 1 through 20 (odds only). Show your work!",
+      dueDate: today.toISOString(),
+      isCompleted: false,
+      assignedToName: "Son",
+      createdByName: "Parent",
+    },
+    {
+      id: "task-4",
+      title: "Pack backpack for tomorrow morning",
+      category: "REMINDER",
+      notes: "Don't forget the signed field trip permission slip and gym clothes.",
+      dueDate: today.toISOString(),
+      isCompleted: true,
+      completedAt: today.toISOString(),
+      assignedToName: "Son",
+      createdByName: "Parent",
+    },
+  ];
+}
 
 function ensureLocalDataDir() {
-  const dir = path.dirname(LOCAL_DATA_FILE);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  if (!fs.existsSync(LOCAL_DATA_FILE)) {
-    // Seed with realistic starting sample tasks
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const friday = new Date(today);
-    friday.setDate(friday.getDate() + 3);
-
-    const initialTasks: TaskItem[] = [
-      {
-        id: "task-1",
-        title: "Clean bedroom & organize desk",
-        category: "CHORE",
-        notes: "Put laundry into the hamper and wipe down desk surface.",
-        dueDate: today.toISOString(),
-        isCompleted: false,
-        assignedToName: "Son",
-        createdByName: "Parent",
-      },
-      {
-        id: "task-2",
-        title: "History Chapter 5 Quiz Prep",
-        category: "TEST",
-        notes: "Review flashcards on the American Revolution key dates.",
-        dueDate: tomorrow.toISOString(),
-        isCompleted: false,
-        assignedToName: "Son",
-        createdByName: "Parent",
-      },
-      {
-        id: "task-3",
-        title: "Math worksheet pages 42-45",
-        category: "HOMEWORK",
-        notes: "Problems 1 through 20 (odds only). Show your work!",
-        dueDate: today.toISOString(),
-        isCompleted: false,
-        assignedToName: "Son",
-        createdByName: "Parent",
-      },
-      {
-        id: "task-4",
-        title: "Pack backpack for tomorrow morning",
-        category: "REMINDER",
-        notes: "Don't forget the signed field trip permission slip and gym clothes.",
-        dueDate: today.toISOString(),
-        isCompleted: true,
-        completedAt: today.toISOString(),
-        assignedToName: "Son",
-        createdByName: "Parent",
-      },
-    ];
-    fs.writeFileSync(LOCAL_DATA_FILE, JSON.stringify(initialTasks, null, 2), "utf-8");
+  try {
+    const dir = path.dirname(LOCAL_DATA_FILE);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    if (!fs.existsSync(LOCAL_DATA_FILE)) {
+      fs.writeFileSync(LOCAL_DATA_FILE, JSON.stringify(getInitialTasks(), null, 2), "utf-8");
+    }
+  } catch (e) {
+    // If filesystem is read-only or restricted, fallback to inMemoryTasks
+    if (!inMemoryTasks) {
+      inMemoryTasks = getInitialTasks();
+    }
   }
 }
 
 function readLocalTasks(): TaskItem[] {
-  ensureLocalDataDir();
   try {
-    const raw = fs.readFileSync(LOCAL_DATA_FILE, "utf-8");
-    return JSON.parse(raw);
+    ensureLocalDataDir();
+    if (fs.existsSync(LOCAL_DATA_FILE)) {
+      const raw = fs.readFileSync(LOCAL_DATA_FILE, "utf-8");
+      return JSON.parse(raw);
+    }
   } catch (err) {
-    console.error("Failed to read local tasks:", err);
-    return [];
+    console.warn("Failed to read file tasks, using memory:", err);
   }
+
+  if (!inMemoryTasks) {
+    inMemoryTasks = getInitialTasks();
+  }
+  return inMemoryTasks;
 }
 
 function writeLocalTasks(tasks: TaskItem[]) {
-  ensureLocalDataDir();
-  fs.writeFileSync(LOCAL_DATA_FILE, JSON.stringify(tasks, null, 2), "utf-8");
+  try {
+    ensureLocalDataDir();
+    fs.writeFileSync(LOCAL_DATA_FILE, JSON.stringify(tasks, null, 2), "utf-8");
+  } catch (e) {
+    console.warn("Filesystem write failed, caching in memory:", e);
+  }
+  inMemoryTasks = tasks;
 }
 
 const isDbReady = () => Boolean(process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL);
