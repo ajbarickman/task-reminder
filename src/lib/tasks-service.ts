@@ -1,7 +1,6 @@
-import { prisma } from "./prisma";
+import { prisma, getPrisma } from "./prisma";
 import fs from "fs";
 import path from "path";
-
 import os from "os";
 
 export interface TaskItem {
@@ -118,7 +117,7 @@ function writeLocalTasks(tasks: TaskItem[]) {
   inMemoryTasks = tasks;
 }
 
-const isDbReady = () => Boolean(process.env.POSTGRES_PRISMA_URL || process.env.DATABASE_URL);
+const isDbReady = () => Boolean(getPrisma());
 
 export async function getTasksList(): Promise<TaskItem[]> {
   if (isDbReady()) {
