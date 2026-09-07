@@ -45,14 +45,25 @@ export async function sendTaskNotificationSms(options: SendSmsOptions): Promise<
     body += `\n📌 Note: ${notes}`;
   }
 
-  const appBaseUrl = process.env.NEXTAUTH_URL || "https://familytask.vercel.app";
+  // Normalize phone number to E.164 (+1XXXXXXXXXX)
+  let formattedTo = to.replace(/[^\d+]/g, "");
+  if (!formattedTo.startsWith("+")) {
+    if (formattedTo.length === 10) {
+      formattedTo = "+1" + formattedTo;
+    } else if (formattedTo.length === 11 && formattedTo.startsWith("1")) {
+      formattedTo = "+" + formattedTo;
+    }
+  }
+
+  const appBaseUrl =
+    process.env.NEXTAUTH_URL || "https://task-reminder-henna.vercel.app";
   body += `\nCheck off when done: ${appBaseUrl}`;
 
   // If Twilio credentials are not set, simulate cleanly for development
   if (!accountSid || !authToken || !fromNumber) {
     console.log("=========================================");
     console.log("📱 [SMS SIMULATION] (Twilio credentials not configured)");
-    console.log(`To: ${to}`);
+    console.log(`To: ${formattedTo}`);
     console.log(`Message:\n${body}`);
     console.log("=========================================");
     return { success: true, simulated: true };
@@ -63,9 +74,9 @@ export async function sendTaskNotificationSms(options: SendSmsOptions): Promise<
     const result = await client.messages.create({
       body,
       from: fromNumber,
-      to,
+      to: formattedTo,
     });
-    console.log(`[SMS Sent] SID: ${result.sid} to ${to}`);
+    console.log(`[SMS Sent] SID: ${result.sid} to ${formattedTo}`);
     return { success: true, messageId: result.sid };
   } catch (error: any) {
     console.error("Twilio SMS send error:", error);
