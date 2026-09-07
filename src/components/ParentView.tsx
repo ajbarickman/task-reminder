@@ -27,7 +27,7 @@ interface ParentViewProps {
     assignedToName: string;
     sendSms?: boolean;
     sonPhoneNumber?: string;
-  }) => Promise<void>;
+  }) => Promise<any>;
   onToggleTask: (id: string) => Promise<void>;
   onDeleteTask: (id: string) => Promise<void>;
   isLoading?: boolean;
@@ -65,6 +65,10 @@ export const ParentView: React.FC<ParentViewProps> = ({
 }) => {
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState<string>("ALL");
+  const [statusBanner, setStatusBanner] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -94,8 +98,9 @@ export const ParentView: React.FC<ParentViewProps> = ({
     }
 
     setIsSubmitting(true);
+    setStatusBanner(null);
     try {
-      await onAddTask({
+      const smsResult = await onAddTask({
         title: title.trim(),
         category,
         dueDate: new Date(dueDate).toISOString(),
@@ -107,8 +112,26 @@ export const ParentView: React.FC<ParentViewProps> = ({
       setTitle("");
       setNotes("");
       setShowAddForm(false);
-    } catch (err) {
+
+      if (sendSms && sonPhoneNumber) {
+        if (smsResult?.success) {
+          setStatusBanner({
+            type: "success",
+            message: `📱 SMS text sent successfully to ${sonPhoneNumber}!`,
+          });
+        } else if (smsResult?.error) {
+          setStatusBanner({
+            type: "error",
+            message: `⚠️ Task saved, but Twilio SMS failed: ${smsResult.error}`,
+          });
+        }
+      }
+    } catch (err: any) {
       console.error(err);
+      setStatusBanner({
+        type: "error",
+        message: `Error: ${err.message || "Failed to save task"}`,
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -127,6 +150,32 @@ export const ParentView: React.FC<ParentViewProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Toast / Status Banner */}
+      {statusBanner && (
+        <div
+          className={`p-4 rounded-2xl flex items-start justify-between gap-3 border shadow-sm transition-all ${
+            statusBanner.type === "success"
+              ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800"
+              : "bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 border-amber-200 dark:border-amber-800"
+          }`}
+        >
+          <div className="flex items-start gap-2.5 text-xs font-semibold">
+            {statusBanner.type === "success" ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            )}
+            <span>{statusBanner.message}</span>
+          </div>
+          <button
+            onClick={() => setStatusBanner(null)}
+            className="text-xs font-bold opacity-60 hover:opacity-100 p-1"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="bg-gradient-to-br from-indigo-600 to-indigo-800 rounded-3xl p-6 text-white shadow-xl shadow-indigo-600/10">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

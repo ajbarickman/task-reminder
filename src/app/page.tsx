@@ -50,8 +50,10 @@ export default function HomePage() {
       if (data.success && data.task) {
         setTasks((prev) => [...prev, data.task]);
       }
-    } catch (e) {
+      return data.smsStatus;
+    } catch (e: any) {
       console.error("Failed to add task:", e);
+      return { success: false, error: e.message || "Failed to add task" };
     }
   };
 
