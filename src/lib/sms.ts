@@ -47,23 +47,23 @@ export async function sendTaskNotificationSms(options: SendSmsOptions): Promise<
     minute: "2-digit",
   })}`;
 
-  const categoryEmoji: Record<string, string> = {
-    CHORE: "🧹 Chore",
-    TEST: "📝 School Test",
-    HOMEWORK: "📚 Homework",
-    REMINDER: "⏰ Reminder",
+  const categoryLabels: Record<string, string> = {
+    CHORE: "Chore",
+    TEST: "School Test",
+    HOMEWORK: "Homework",
+    REMINDER: "Reminder",
   };
 
-  const tag = categoryEmoji[category] || "⏰ Reminder";
-  let body = `Hey! New task added: [${tag}]\n${taskTitle}\n📅 Due: ${dueFormatted}`;
+  const tag = categoryLabels[category] || "Reminder";
+  let body = `[${tag}] ${taskTitle} - Due: ${dueFormatted}`;
 
   if (notes) {
-    body += `\n📌 Note: ${notes}`;
+    body += ` (Note: ${notes})`;
   }
 
   const appBaseUrl =
     process.env.NEXTAUTH_URL || "https://task-reminder-henna.vercel.app";
-  body += `\nCheck off when done: ${appBaseUrl}`;
+  body += ` | ${appBaseUrl}`;
 
   // If Twilio credentials are missing
   if (!rawSid || !rawAuth || !rawFrom) {

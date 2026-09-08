@@ -15,10 +15,9 @@ export async function POST(req: Request) {
 
     const result = await sendTaskNotificationSms({
       to: phoneNumber,
-      taskTitle: "Testing Twilio Setup",
+      taskTitle: "FamilyTask connection working!",
       category: "REMINDER",
       dueDate: new Date().toISOString(),
-      notes: "Congratulations! Your phone is now receiving SMS reminders from FamilyTask.",
     });
 
     return NextResponse.json(result);
