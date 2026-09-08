@@ -83,11 +83,54 @@ export const ParentView: React.FC<ParentViewProps> = ({
   const [sonPhoneNumber, setSonPhoneNumber] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Test SMS card state
+  const [testPhone, setTestPhone] = useState("");
+  const [isSendingTestSms, setIsSendingTestSms] = useState(false);
+  const [testSmsStatus, setTestSmsStatus] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
   // Load saved phone number from localStorage
   React.useEffect(() => {
     const saved = localStorage.getItem("son_phone_number");
-    if (saved) setSonPhoneNumber(saved);
+    if (saved) {
+      setSonPhoneNumber(saved);
+      setTestPhone(saved);
+    }
   }, []);
+
+  const handleSendTestSms = async () => {
+    if (!testPhone.trim()) return;
+    setIsSendingTestSms(true);
+    setTestSmsStatus(null);
+    try {
+      const res = await fetch("/api/test-sms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phoneNumber: testPhone }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestSmsStatus({
+          success: true,
+          message: `🎉 Success! Test text sent to ${testPhone} (Twilio SID: ${data.messageId || "ok"})`,
+        });
+      } else {
+        setTestSmsStatus({
+          success: false,
+          message: `❌ Twilio Error: ${data.error || "Failed to send"}`,
+        });
+      }
+    } catch (err: any) {
+      setTestSmsStatus({
+        success: false,
+        message: `Network error: ${err.message}`,
+      });
+    } finally {
+      setIsSendingTestSms(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -477,6 +520,51 @@ export const ParentView: React.FC<ParentViewProps> = ({
           <span className="font-bold block mb-0.5">Google Sign-in & Vercel Postgres:</span>
           When deployed to Vercel, signing in with your Google account lets you manage reminders from your phone, while your son logs in with his Google account on his phone to see his daily checklist.
         </div>
+      </div>
+
+      {/* Twilio SMS Diagnostics & Test Card */}
+      <div className="p-5 rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-bold text-sm text-zinc-900 dark:text-white flex items-center gap-2">
+            <span>📱</span> Twilio SMS Test & Diagnostics
+          </h4>
+          <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-md bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
+            Direct Test
+          </span>
+        </div>
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          Enter any verified phone number and click the button to send an instant test SMS directly from your Twilio number:
+        </p>
+
+        <div className="flex flex-col sm:flex-row gap-2">
+          <input
+            type="tel"
+            placeholder="+1 (555) 000-1234"
+            value={testPhone}
+            onChange={(e) => setTestPhone(e.target.value)}
+            className="flex-1 px-3.5 py-2.5 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-xs text-zinc-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          <button
+            type="button"
+            onClick={handleSendTestSms}
+            disabled={isSendingTestSms || !testPhone.trim()}
+            className="px-4 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-bold text-xs shadow-sm active:scale-95 transition-all disabled:opacity-50"
+          >
+            {isSendingTestSms ? "Sending Text..." : "Send Test Text"}
+          </button>
+        </div>
+
+        {testSmsStatus && (
+          <div
+            className={`p-3 rounded-xl text-xs font-semibold border transition-all ${
+              testSmsStatus.success
+                ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-900 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800"
+                : "bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-200 border-rose-200 dark:border-rose-800"
+            }`}
+          >
+            {testSmsStatus.message}
+          </div>
+        )}
       </div>
     </div>
   );
